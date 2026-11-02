@@ -57,6 +57,13 @@ contextBridge.exposeInMainWorld('api', {
   format: inv('tex:format'),
   kpsewhich: inv('tex:kpsewhich'),
 
+  aiStatus: inv('ai:status'),
+  aiSetKey: inv('ai:set-key'),
+  aiStream: inv('ai:stream'),
+  aiAbort: inv('ai:abort'),
+  aiFix: inv('ai:fix'),
+  onAiEvent: on('ai:event'),
+
   onOpenFile: on('app:open-file'),
   onRequestClose: on('app:request-close'),
   onSystemTheme: on('app:system-theme'),

@@ -6,6 +6,7 @@ const os = require('os');
 const { execFile } = require('child_process');
 const compiler = require('./compiler');
 const synctex = require('./synctex');
+const ai = require('./ai');
 const { findTexBin, tool, scanCommon } = require('./texenv');
 
 const TEXT_EXT = /\.(tex|ltx|bib|sty|cls|bst|dtx|ins|txt|md|bbx|cbx|def|cfg|clo|tikz|pgf|lco|latexmkrc|bbl|log|aux|toc|py|m|csv|dat|json|yaml|yml)$/i;
@@ -43,6 +44,11 @@ const DEFAULTS = {
   showLogOnError: true,
   pdfInvert: false,
   pdfZoom: 'width',
+  aiModel: 'claude-opus-5-5',
+  aiEffort: 'medium',
+  aiBaseURL: '',
+  aiKeyEnc: '',
+  aiLanguage: 'auto',
   recentFiles: [],
   recentFolders: [],
   windowBounds: null,
@@ -193,8 +199,9 @@ ipcMain.handle('app:set-spell-langs', (_e, langs) => { try { win?.webContents.se
 ipcMain.handle('app:clipboard-write', (_e, text) => clipboard.writeText(text));
 
 // ---------- settings / session ----------
-ipcMain.handle('settings:get', () => ({ ...settings }));
-ipcMain.handle('settings:set', (_e, patch) => { settings = { ...settings, ...patch }; writeJSON(settingsFile, settings); return { ...settings }; });
+const publicSettings = () => { const { aiKeyEnc, ...rest } = settings; return { ...rest, aiKeySaved: !!aiKeyEnc }; };
+ipcMain.handle('settings:get', () => publicSettings());
+ipcMain.handle('settings:set', (_e, patch) => { const { aiKeyEnc, aiKeySaved, ...safe } = patch; settings = { ...settings, ...safe }; writeJSON(settingsFile, settings); return publicSettings(); });
 ipcMain.handle('settings:defaults', () => ({ ...DEFAULTS }));
 ipcMain.handle('session:get', () => readJSON(sessionFile, null));
 ipcMain.handle('session:set', (_e, s) => writeJSON(sessionFile, s));
@@ -335,6 +342,13 @@ ipcMain.handle('tex:format', async (_e, content, tabSize) => {
 ipcMain.handle('tex:kpsewhich', (_e, name, cwd) => new Promise((resolve) => {
   execFile(tool(texBin(), 'kpsewhich'), [name], { cwd, windowsHide: true, encoding: 'utf8', timeout: 5000 }, (err, stdout) => resolve(err ? null : stdout.trim() || null));
 }));
+
+// ---------- AI ----------
+ipcMain.handle('ai:status', () => ai.status(settings));
+ipcMain.handle('ai:set-key', async (_e, key) => { settings.aiKeyEnc = await ai.encryptKey((key || '').trim()); writeJSON(settingsFile, settings); return ai.status(settings); });
+ipcMain.handle('ai:stream', (_e, req) => ai.stream(settings, req, (type, payload) => send('ai:event', { id: req.id, type, ...payload })));
+ipcMain.handle('ai:abort', (_e, id) => ai.abort(id));
+ipcMain.handle('ai:fix', (_e, req) => ai.fix(settings, req));
 
 // ---------- watching ----------
 const watchers = new Map();

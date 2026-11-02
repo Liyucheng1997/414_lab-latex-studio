@@ -4,6 +4,7 @@ import { h, basename, dirname, relative, fuzzyScore, fmtKey, stripExt } from './
 import { icon } from './icons.js';
 import { modal, toast, promptDialog } from './ui.js';
 import { insertText } from './editor/extras.js';
+import { aiSettingsSection } from './ai.js';
 
 const api = window.api;
 
@@ -66,16 +67,19 @@ export function openSettings(section = 'build') {
       field('深色模式下反色 PDF', toggle('pdfInvert', () => app.pdf?.applyInvert())),
       field('双击 PDF 跳转源码', toggle('pdfDblClick', (v) => { if (app.pdf) app.pdf.viewer.dblClickSync = v; }), 'Ctrl + 单击始终可用'),
     ]],
+    ai: ['AI 写作', 'sparkles', () => aiSettingsSection(field, select, seg)],
     look: ['外观', 'theme', () => [
       field('主题', seg('theme', [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']], () => applyTheme())),
     ]],
     keys: ['快捷键', 'keyboard', () => [shortcutTable()]],
   };
-  const show = (k) => {
+  const show = async (k) => {
     section = k;
     nav.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('active', n.dataset.k === k));
     const [title, , build] = sections[k];
-    content.replaceChildren(h('div', { class: 'set-eyebrow' }, 'SETTINGS'), h('div', { class: 'set-title' }, title), ...build());
+    const rows = await build();
+    if (section !== k) return;
+    content.replaceChildren(h('div', { class: 'set-eyebrow' }, 'SETTINGS'), h('div', { class: 'set-title' }, title), ...rows);
   };
   for (const [k, [label, ic]] of Object.entries(sections)) nav.append(h('div', { class: 'nav-item', 'data-k': k, onclick: () => show(k) }, icon(ic, 16), label));
   const m = modal({ title: null, body: h('div', { class: 'settings' }, nav, content), width: 860, className: 'modal-settings' });

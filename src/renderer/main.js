@@ -6,6 +6,7 @@ import { registerCommands, installShortcuts, mountMenubar, initContextMenu, runC
 import { build, compile, stopCompile, inverseSearch, forwardSearch, mountMessages, mountOutput, mountLog } from './build.js';
 import { mountFiles, mountOutline, mountSearch, mountSymbols, mountBib } from './panels.js';
 import { PdfViewer } from './pdfview.js';
+import { mountAiPanel } from './ai.js';
 import { h, $, debounce, basename, dirname, relative, samePath } from './util.js';
 import { insertText } from './editor/extras.js';
 import { icon } from './icons.js';
@@ -13,7 +14,7 @@ import { iconButton, makeSplitter, showMenu, confirmDialog, toast } from './ui.j
 
 const api = window.api;
 
-app.layout = { sidebar: true, pdf: true, panel: false, sidebarWidth: 264, pdfWidth: 0.44, panelHeight: 230, sidebarTab: 'files', panelTab: 'messages' };
+app.layout = { sidebar: true, pdf: true, panel: false, ai: false, sidebarWidth: 264, pdfWidth: 0.44, aiWidth: 400, panelHeight: 230, sidebarTab: 'files', panelTab: 'messages' };
 
 async function main() {
   await loadSettings();
@@ -63,10 +64,11 @@ function buildLayout() {
   const tSidebar = iconButton('panel-left', '侧栏', () => runCommand('view.sidebar'), { key: 'Alt-1' });
   const tPanel = iconButton('panel-bottom', '消息面板', () => runCommand('view.panel'), { key: 'Alt-3' });
   const tPdf = iconButton('panel-right', 'PDF 预览', () => runCommand('view.pdf'), { key: 'Alt-2' });
+  const tAi = h('button', { class: 'ai-toggle', 'data-tip': 'AI 写作', 'data-key': 'Mod-l', onclick: () => runCommand('view.ai') }, icon('sparkles', 15, 2), h('span', {}, 'AI'));
   const titlebar = h('header', { class: 'titlebar' },
     h('div', { class: 'tb-left' }, h('div', { class: 'logo-mark', title: 'TeX Studio Minimal' }, 'Tx'), menubar),
     h('div', { class: 'tb-center' }, docTitle),
-    h('div', { class: 'tb-right' }, h('div', { class: 'build-group' }, engineBtn, buildBtn), h('div', { class: 'tb-sep' }), tSidebar, tPanel, tPdf, themeBtn, iconButton('settings', '设置', () => runCommand('file.settings'), { key: 'Mod-,' })),
+    h('div', { class: 'tb-right' }, tAi, h('div', { class: 'build-group' }, engineBtn, buildBtn), h('div', { class: 'tb-sep' }), tSidebar, tPanel, tPdf, themeBtn, iconButton('settings', '设置', () => runCommand('file.settings'), { key: 'Mod-,' })),
     h('div', { class: 'tb-overlay-space' }),
   );
   mountMenubar(menubar);
@@ -133,7 +135,11 @@ function buildLayout() {
   // ---- PDF ----
   const pdfCard = buildPdfPane();
 
-  const workspace = h('main', { class: 'workspace' }, sidebar, h('div', { class: 'splitter sx', id: 'split-side' }), center, h('div', { class: 'splitter sx', id: 'split-pdf' }), pdfCard);
+  // ---- AI ----
+  const aiCard = h('section', { class: 'ai-card card' });
+  mountAiPanel(aiCard);
+
+  const workspace = h('main', { class: 'workspace' }, sidebar, h('div', { class: 'splitter sx', id: 'split-side' }), center, h('div', { class: 'splitter sx', id: 'split-ai' }), aiCard, h('div', { class: 'splitter sx', id: 'split-pdf' }), pdfCard);
 
   // ---- status bar ----
   const sbStatus = h('div', { class: 'sb-item sb-status' });
@@ -146,14 +152,16 @@ function buildLayout() {
   const statusbar = h('footer', { class: 'statusbar' }, h('div', { class: 'sb-left' }, sbStatus, sbRoot), h('div', { class: 'sb-right' }, sbPos, sbSpell, sbEnc, sbLang, sbEngine));
 
   root.append(titlebar, workspace, statusbar);
-  els = { root, titlebar, docTitle, buildBtn, engineBtn, themeBtn, tSidebar, tPanel, tPdf, sidebar, center, panel, pdfCard, workspace, sbStatus, sbRoot, sbPos, sbEngine, sbEnc, sbLang, sbSpell, editorCard };
+  els = { root, titlebar, docTitle, buildBtn, engineBtn, themeBtn, tSidebar, tPanel, tPdf, tAi, sidebar, center, panel, pdfCard, aiCard, workspace, sbStatus, sbRoot, sbPos, sbEngine, sbEnc, sbLang, sbSpell, editorCard };
 
   // ---- splitters ----
   let start;
+  makeSplitter($('#split-ai'), { onMove: (dx) => { start ??= app.layout.aiWidth; app.layout.aiWidth = Math.max(300, Math.min(760, start - dx)); applyLayout(); }, onEnd: () => { start = null; saveSessionSoon(); } });
+  addEventListener('resize', debounce(applyLayout, 120));
   makeSplitter($('#split-side'), { onMove: (dx) => { start ??= app.layout.sidebarWidth; app.layout.sidebarWidth = Math.max(190, Math.min(520, start + dx)); applyLayout(); }, onEnd: () => { start = null; saveSessionSoon(); } });
   makeSplitter($('#split-pdf'), { onMove: (dx) => {
     const W = workspace.clientWidth;
-    start ??= app.layout.pdfWidth * W;
+    start ??= els.pdfCard.offsetWidth;
     app.layout.pdfWidth = Math.max(0.18, Math.min(0.75, (start - dx) / W));
     applyLayout();
   }, onEnd: () => { start = null; saveSessionSoon(); } });
@@ -348,13 +356,21 @@ export function applyLayout() {
   els.sidebar.style.width = L.sidebarWidth + 'px';
   els.pdfCard.style.display = L.pdf ? '' : 'none';
   $('#split-pdf').style.display = L.pdf ? '' : 'none';
-  els.pdfCard.style.width = (L.pdfWidth * 100).toFixed(2) + '%';
+  // Keep the editor at least ~480px wide: the PDF gives way when the sidebar and AI panel are open.
+  const W = els.workspace.clientWidth || innerWidth;
+  const taken = (L.sidebar ? L.sidebarWidth : 0) + (L.ai ? L.aiWidth || 400 : 0) + 60;
+  const pdfPx = Math.max(260, Math.min(L.pdfWidth * W, W - taken - 480));
+  els.pdfCard.style.width = Math.round(pdfPx) + 'px';
   els.panel.style.display = L.panel ? '' : 'none';
   $('#split-panel').style.display = L.panel ? '' : 'none';
   els.panel.style.height = L.panelHeight + 'px';
   els.tSidebar.classList.toggle('on', L.sidebar);
   els.tPanel.classList.toggle('on', L.panel);
   els.tPdf.classList.toggle('on', L.pdf);
+  els.aiCard.style.display = L.ai ? '' : 'none';
+  $('#split-ai').style.display = L.ai ? '' : 'none';
+  els.aiCard.style.width = (L.aiWidth || 400) + 'px';
+  els.tAi.classList.toggle('on', !!L.ai);
   app.sidebar.show(L.sidebarTab || 'files', { open: false });
   app.showPanel(L.panelTab || 'messages', { open: false });
   saveSessionSoon();

@@ -172,11 +172,17 @@ export function mountMessages(container) {
         h('span', { class: 'status-dot ' + is.type }),
         h('span', { class: 'msg-text' }, is.message),
         h('span', { class: 'msg-where' }, where),
+        is.type === 'error' ? h('button', { class: 'chip chip-xs msg-ai', title: '让 AI 修复这个错误', onclick: (e) => { e.stopPropagation(); aiFix([is]); } }, icon('wand', 12), 'AI 修复') : null,
       );
       list.append(row);
     }
   };
-  container.append(h('div', { class: 'panel-toolbar' }, seg), list);
+  const aiFix = (issues) => import('./ai.js').then((m) => m.fixErrors(issues));
+  const fixAll = h('button', { class: 'chip chip-xs msg-ai-all', onclick: () => aiFix() }, icon('wand', 12), 'AI 修复全部错误');
+  const syncFixAll = () => { fixAll.hidden = !(build.last?.issues || []).some((x) => x.type === 'error'); };
+  container.append(h('div', { class: 'panel-toolbar' }, seg, h('div', { class: 'tb-flex' }), fixAll), list);
+  on('build-end', syncFixAll);
+  syncFixAll();
   on('build-end', render);
   render();
   return { render };

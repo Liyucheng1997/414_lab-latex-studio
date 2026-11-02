@@ -9,6 +9,7 @@ import { openSettings, quickStart, tableWizard, figureWizard, matrixWizard, goto
 import { wrapWith, insertText, insertEnvironment, wordArgAt } from './editor/extras.js';
 import { showMenu, closeMenus, toast, menuOpen } from './ui.js';
 import { basename, samePath, h, isMac } from './util.js';
+import { rewriteSelection, continueWriting, fixErrors, REWRITE_PRESETS } from './ai.js';
 import { icon } from './icons.js';
 
 const api = window.api;
@@ -211,6 +212,22 @@ export function registerCommands() {
   cmd('math.int', '积分 \\int', ins('\\int_{a}^{b} '), { category: M });
   cmd('math.matrix', '矩阵向导…', matrixWizard, { category: M, icon: 'grid' });
 
+  // AI
+  const A = 'AI';
+  const openAi = () => { if (!app.layout.ai) app.layoutApi.toggle('ai'); setTimeout(() => app.ai?.focus(), 30); };
+  cmd('view.ai', 'AI 写作面板', () => { if (app.layout.ai && document.activeElement?.closest('.ai-card')) app.layoutApi.toggle('ai'); else openAi(); }, { key: 'Mod-l', icon: 'sparkles', category: A });
+  cmd('ai.rewrite', 'AI 编辑选中内容…', () => rewriteSelection(), { key: 'Mod-k', icon: 'wand', category: A });
+  cmd('ai.continue', 'AI 续写', continueWriting, { key: 'Mod-Shift-Enter', icon: 'sparkles', category: A });
+  cmd('ai.fix', 'AI 修复编译错误', () => fixErrors(), { icon: 'wand', category: A });
+  cmd('ai.askSelection', '就选中内容问 AI', () => {
+    const st = v().state;
+    const s = st.sliceDoc(st.selection.main.from, st.selection.main.to);
+    openAi();
+    setTimeout(() => app.ai?.focus(s ? '关于选中的内容：' : ''), 40);
+  }, { icon: 'sparkles', category: A });
+  for (const [label, text] of REWRITE_PRESETS) cmd('ai.preset.' + label, 'AI ' + label, () => rewriteSelection(text), { category: A });
+  cmd('ai.settings', 'AI 设置…', () => openSettings('ai'), { icon: 'settings', category: A });
+
   // Help
   cmd('help.shortcuts', '快捷键', () => openSettings('keys'), { icon: 'keyboard', category: '帮助' });
   cmd('help.about', '关于', about, { icon: 'info', category: '帮助' });
@@ -262,7 +279,7 @@ export function installShortcuts() {
     if (document.querySelector('.modal-overlay') && !/^(F\d+)$/.test(k)) return;
     const inEditor = !!document.activeElement?.closest?.('.cm-editor');
     const inInput = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') && !inEditor;
-    if (inInput && !/^(Mod-s|F\d+|Mod-p|Mod-Shift-p|Mod-o|Mod-n|Mod-,)$/.test(k)) return;
+    if (inInput && !/^(Mod-s|F\d+|Mod-p|Mod-Shift-p|Mod-o|Mod-n|Mod-,|Mod-l)$/.test(k)) return;
     e.preventDefault();
     e.stopPropagation();
     closeMenus();
@@ -322,6 +339,11 @@ export function menus() {
       c('build.latexmk'), c('build.bibtex'), c('build.biber'), c('build.makeindex'), c('build.glossaries'), { sep: true },
       c('build.forward'), c('build.external'), c('build.wordcount'), c('build.clean'),
     ]],
+    ['AI', () => [
+      c('view.ai'), { sep: true }, c('ai.continue'), c('ai.rewrite'),
+      { label: '快速改写选中内容', icon: 'pencil', submenu: REWRITE_PRESETS.map(([label]) => c('ai.preset.' + label)) },
+      c('ai.askSelection'), { sep: true }, c('ai.fix', { disabled: !(build.last?.issues || []).some((x) => x.type === 'error') }), { sep: true }, c('ai.settings'),
+    ]],
     ['帮助', () => [c('help.shortcuts'), c('view.palette'), c('help.texdoc'), c('help.ctan'), { sep: true }, c('help.about')]],
   ];
 }
@@ -373,6 +395,9 @@ export function initContextMenu() {
     if (wa && /^(input|include|subfile)$/.test(wa.cmd)) items.push({ label: `打开 ${wa.arg}`, icon: 'file-text', run: () => emit('ctrl-click', pos) });
     if (wa && /^(usepackage|RequirePackage)$/.test(wa.cmd)) items.push({ label: `查看 ${wa.key} 文档`, icon: 'book', run: () => api.openUrl('https://texdoc.org/pkg/' + encodeURIComponent(wa.key)) });
     items.push(c('build.forward', { label: '在 PDF 中查看此处' }));
+    items.push(hasSel
+      ? { label: 'AI', icon: 'sparkles', submenu: [c('ai.rewrite'), { sep: true }, ...REWRITE_PRESETS.map(([label]) => c('ai.preset.' + label)), { sep: true }, c('ai.askSelection')] }
+      : c('ai.continue', { label: 'AI 在此处续写' }));
     items.push({ sep: true }, c('edit.cut', { disabled: !hasSel }), c('edit.copy', { disabled: !hasSel }), c('edit.paste'), { sep: true }, c('edit.toggleComment'), c('edit.selectAll'));
     if (hasSel) items.push({ label: '包裹为', submenu: [c('fmt.bold'), c('fmt.italic'), c('fmt.emph'), c('fmt.tt'), c('math.inline'), { sep: true }, c('edit.upper'), c('edit.lower')] });
     showMenu(items, p.x, p.y);
