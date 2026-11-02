@@ -1,0 +1,78 @@
+{
+  "name": "texstudio-minimal",
+  "productName": "TeX Studio Minimal",
+  "version": "1.0.0",
+  "description": "A minimal, beautiful LaTeX editor with live PDF preview and SyncTeX.",
+  "main": "app/main/main.js",
+  "author": "liyucheng",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Liyucheng1997/texstudio-minimal.git" },
+  "homepage": "https://github.com/Liyucheng1997/texstudio-minimal",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "start": "node build.mjs && electron .",
+    "dist": "node build.mjs && electron-builder --win nsis",
+    "pack": "node build.mjs && electron-builder --win dir"
+  },
+  "build": {
+    "appId": "com.liyucheng.texstudio-minimal",
+    "productName": "TeX Studio Minimal",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "app/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
+    "fileAssociations": [
+      {
+        "ext": "tex",
+        "name": "LaTeX Document",
+        "role": "Editor"
+      },
+      {
+        "ext": "bib",
+        "name": "BibTeX Database",
+        "role": "Editor"
+      },
+      {
+        "ext": "cls",
+        "name": "LaTeX Class",
+        "role": "Editor"
+      },
+      {
+        "ext": "sty",
+        "name": "LaTeX Package",
+        "role": "Editor"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/legacy-modes": "^6.5.5",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/highlight": "^1.2.5",
+    "codemirror": "^6.0.2",
+    "katex": "^0.19.1",
+    "lucide": "^1.66.0",
+    "pdfjs-dist": "^6.5.438"
+  }
+}
