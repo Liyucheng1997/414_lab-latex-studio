@@ -1,7 +1,7 @@
 {
   "name": "texstudio-minimal",
   "productName": "TeX Studio Minimal",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A minimal, beautiful LaTeX editor with live PDF preview and SyncTeX.",
   "main": "app/main/main.js",
   "author": "liyucheng",

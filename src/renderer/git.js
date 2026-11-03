@@ -74,6 +74,7 @@ export function mountVersionDock(sidebar) {
   seg.append(changesBtn, histBtn);
   const viewHost = h('div', { class: 'vc-view' });
   const head = h('div', { class: 'vc-head' }, seg, h('span', { class: 'vc-flex' }),
+    iconButton('tag', '给当前版本打标签', () => tagDialog(), { cls: 'icon-btn-sm', size: 14 }),
     iconButton('refresh', '刷新', () => refresh({ withLog: true, fetch: true }), { cls: 'icon-btn-sm', size: 14 }),
     iconButton('external', '在 GitHub 上打开', () => st?.webUrl ? api.openUrl(st.webUrl) : toast('还没有连接 GitHub'), { cls: 'icon-btn-sm', size: 14 }));
 
@@ -203,8 +204,11 @@ export function mountVersionDock(sidebar) {
       row.addEventListener('click', () => commitDialog(c));
       row.addEventListener('contextmenu', (e) => {
         e.preventDefault();
+        const tagName = e.target.closest('.vc-ref.tag')?.dataset.tag;
+        if (tagName) return showMenu([{ label: `删除标签 ${tagName}`, icon: 'trash', run: () => removeTag(tagName) }], e.clientX, e.clientY);
         showMenu([
           { label: '查看这个版本的改动', icon: 'git-compare', run: () => commitDialog(c) },
+          { label: '打标签…', icon: 'tag', run: () => tagDialog(c) },
           { label: '复制版本号', icon: 'copy', run: () => { api.clipboardWrite(c.hash); toast('已复制 ' + c.hash.slice(0, 8)); } },
           st.webUrl ? { label: '在 GitHub 上查看', icon: 'external', run: () => api.openUrl(`${st.webUrl}/commit/${c.hash}`) } : null,
         ], e.clientX, e.clientY);
@@ -388,6 +392,58 @@ export function mountVersionDock(sidebar) {
     if (first) pick(r.files[Math.max(0, firstText)], files.children[Math.max(0, firstText)]);
   }
 
+  // Mark a version with a name such as v2.6 (defaults to the current version).
+  async function tagDialog(c) {
+    if (!st?.repo || st.noCommits) return toast('请先提交一个版本');
+    if (!c) {
+      if (!hist) await loadLog();
+      c = hist?.commits.find((x) => x.refs.some((r) => r === 'HEAD' || r.startsWith('HEAD -> ')));
+      if (!c) return;
+    }
+    const existing = await git.tags(st.root);
+    const name = h('input', { class: 'input', value: nextTag(existing), spellcheck: 'false' });
+    const note = h('input', { class: 'input', value: c.subject, placeholder: '这个版本的说明', spellcheck: 'false' });
+    const push = h('input', { type: 'checkbox', checked: !!st.remoteUrl });
+    const err = h('div', { class: 'form-error' });
+    const okBtn = h('button', { class: 'btn btn-primary' }, '打标签');
+    let m;
+    const submit = async () => {
+      const n = name.value.trim();
+      if (!n) { err.textContent = '请填写标签名'; return; }
+      okBtn.disabled = true;
+      okBtn.replaceChildren(h('span', { class: 'btn-spinner' }), push.checked ? '正在上传…' : '打标签');
+      const r = await git.tag(st.root, c.hash, n, note.value.trim() || n, push.checked);
+      if (!r.ok) { err.textContent = r.error; okBtn.disabled = false; okBtn.replaceChildren('打标签'); return; }
+      m.close();
+      if (r.warning) toast(`已打标签 ${n}，但上传失败：${r.warning}（下次同步时会再上传）`, 'error', 5000);
+      else toast(r.pushed ? `已打标签 ${n} 并上传到 GitHub` : `已打标签 ${n}`, 'success');
+      loadLog();
+    };
+    [name, note].forEach((x) => x.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }));
+    okBtn.addEventListener('click', submit);
+    m = modal({
+      title: '给版本打标签',
+      width: 460,
+      body: h('div', { class: 'form vc-publish' },
+        h('div', { class: 'muted' }, `标记版本 ${c.hash.slice(0, 8)}「${c.subject}」，以后在版本树里一眼就能找到，比如投稿版、修改版。`),
+        h('div', { class: 'form-row' }, h('label', { class: 'form-label' }, '标签名'), name),
+        h('div', { class: 'form-row' }, h('label', { class: 'form-label' }, '说明'), note),
+        st.remoteUrl ? h('label', { class: 'form-check' }, push, h('span', {}, '同时上传到 GitHub')) : null,
+        err),
+      footer: [h('button', { class: 'btn', onclick: () => m.close() }, '取消'), okBtn],
+    });
+    setTimeout(() => { name.focus(); name.select(); }, 40);
+  }
+
+  async function removeTag(n) {
+    const ok = await confirmDialog({ title: `删除标签 ${n}？`, message: '只删除这个标记，版本本身和文件内容都不受影响。' + (st.remoteUrl ? '\nGitHub 上的同名标签也会一起删除。' : ''), ok: '删除', danger: true });
+    if (!ok) return;
+    const r = await git.deleteTag(st.root, n, true);
+    if (!r.ok) return toast(r.error, 'error');
+    toast(r.warning ? `本地已删除，GitHub 上删除失败：${r.warning}` : `已删除标签 ${n}`, r.warning ? 'error' : 'success', r.warning ? 5000 : 2400);
+    loadLog();
+  }
+
   async function restore(c, f) {
     const ok = await confirmDialog({ title: `把 ${basename(f.rel)} 恢复到这个版本？`, message: `文件内容会变成版本 ${c.hash.slice(0, 8)}（${relTime(c.time)}）时的样子。\n恢复后它会出现在"更改"里，确认无误再提交；不满意可以右键"放弃修改"撤回。`, ok: '恢复' });
     if (!ok) return;
@@ -439,6 +495,7 @@ export function mountVersionDock(sidebar) {
     open(view = 'changes') { if (!app.layout.sidebar) app.layoutApi.toggle('sidebar'); setOpen(true); show(view); if (view === 'changes') setTimeout(() => msg.focus(), 60); },
     sync,
     commit: () => app.vc.open('changes'),
+    tag: () => { app.vc.open('history'); tagDialog(); },
     refresh,
     // Session restore replaces app.layout after mounting; re-read the dock's part of it.
     applyLayout() {
@@ -453,6 +510,15 @@ export function mountVersionDock(sidebar) {
 }
 
 // ---------------- helpers ----------------
+// v2.5 → v2.6, 1.3.0 → 1.3.1; falls back to v1.0.
+function nextTag(existing) {
+  const nums = (t) => t.replace(/^v/, '').split('.').map(Number);
+  const cmp = (a, b) => { const x = nums(a), y = nums(b); for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+  const last = existing.filter((t) => /^v?\d+(\.\d+)*$/.test(t)).sort(cmp).pop();
+  if (!last) return 'v1.0';
+  return last.replace(/(\d+)$/, (d) => String(+d + 1));
+}
+
 function relDir(rel) {
   const i = rel.lastIndexOf('/');
   return i < 0 ? '' : rel.slice(0, i);
@@ -494,7 +560,7 @@ function refBadges(refs, current) {
   for (const r of refs) {
     if (r === 'HEAD' || r.endsWith('/HEAD')) continue;
     if (r.startsWith('HEAD -> ')) out.push(h('span', { class: 'vc-ref head', 'data-tip': '当前所在的版本' }, local));
-    else if (r.startsWith('tag: ')) out.push(h('span', { class: 'vc-ref tag' }, icon('tag', 10, 2.2), r.slice(5)));
+    else if (r.startsWith('tag: ')) out.push(h('span', { class: 'vc-ref tag', 'data-tag': r.slice(5), 'data-tip': '标签（右键可删除）' }, icon('tag', 10, 2.2), r.slice(5)));
     else if (r.startsWith('origin/')) out.push(h('span', { class: 'vc-ref remote', 'data-tip': 'GitHub 上的 ' + r.slice(7) }, icon('cloud', 10, 2.2), r.slice(7) === current ? 'GitHub' : 'GitHub/' + r.slice(7)));
     else out.push(h('span', { class: 'vc-ref' }, r));
   }

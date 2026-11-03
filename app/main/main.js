@@ -364,7 +364,7 @@ ipcMain.handle('ai:abort', (_e, id) => ai.abort(id));
 ipcMain.handle('ai:fix', (_e, req) => ai.fix(settings, req));
 
 // ---------- version control ----------
-for (const k of ['status', 'log', 'show', 'diff', 'commit', 'sync', 'fetch', 'discard', 'restoreFile', 'init', 'setRemote', 'publish', 'setIdentity']) {
+for (const k of ['status', 'log', 'show', 'diff', 'commit', 'sync', 'fetch', 'discard', 'restoreFile', 'init', 'setRemote', 'publish', 'setIdentity', 'tag', 'deleteTag', 'tags']) {
   ipcMain.handle('git:' + k, (_e, ...args) => git[k](...args));
 }
 

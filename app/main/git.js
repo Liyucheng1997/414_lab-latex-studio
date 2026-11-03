@@ -117,7 +117,7 @@ const SEP = '\x1f', END = '\x1e';
 async function log(dir, limit = 300) {
   const root = await rootOf(dir);
   if (!root) return { commits: [] };
-  const r = await run(root, ['log', '--all', '--date-order', '-n', String(limit), `--format=%H${SEP}%P${SEP}%an${SEP}%at${SEP}%s${SEP}%D${END}`]);
+  const r = await run(root, ['log', '--branches', '--remotes', '--tags', 'HEAD', '--date-order', '-n', String(limit), `--format=%H${SEP}%P${SEP}%an${SEP}%at${SEP}%s${SEP}%D${END}`]);
   if (!r.ok) return { commits: [], error: /does not have any commits|bad default revision/.test(r.err) ? '' : friendly(r.err) };
   const commits = r.out.split(END).map((s) => s.replace(/^\s+/, '')).filter(Boolean).map((s) => {
     const [hash, parents, author, at, subject, refs] = s.split(SEP);
@@ -207,11 +207,11 @@ async function sync(dir) {
       return { ok: false, error: friendly(p.err || p.out) };
     }
     const after = await status(root);
-    if (!after.ahead) return { ok: true, pulled: st.behind, pushed: 0 };
-    const u = await run(root, ['push'], opts);
+    // --follow-tags also uploads version tags that are still only local.
+    const u = await run(root, ['push', '--follow-tags'], opts);
     return u.ok ? { ok: true, pulled: st.behind, pushed: after.ahead } : fail(u);
   }
-  const u = await run(root, ['push', '-u', 'origin', st.branch], opts);
+  const u = await run(root, ['push', '--follow-tags', '-u', 'origin', st.branch], opts);
   return u.ok ? { ok: true, pulled: 0, pushed: 1, first: true } : fail(u);
 }
 
@@ -236,6 +236,37 @@ async function restoreFile(dir, hash, rel) {
   if (!r.ok) return fail(r);
   await run(root, ['reset', '-q', '--', rel]);
   return { ok: true };
+}
+
+// Annotated tag (like `git tag -a v2.6 -m …`), uploaded right away when the repo has a remote.
+async function tag(dir, hash, name, message, push = true) {
+  const root = await rootOf(dir);
+  const r = await run(root, ['tag', '-a', name, '-m', message || name, hash]);
+  if (!r.ok) return { ok: false, error: /already exists/.test(r.err) ? `标签 ${name} 已经存在` : /not a valid tag name/.test(r.err) ? `"${name}" 不能用作标签名（不能有空格和 ~^:?*[ 等符号）` : friendly(r.err) };
+  if (!push) return { ok: true, pushed: false };
+  const has = await run(root, ['remote', 'get-url', 'origin']);
+  if (!has.ok) return { ok: true, pushed: false };
+  const u = await run(root, ['push', 'origin', 'refs/tags/' + name], { interactive: true, timeout: 120000 });
+  return u.ok ? { ok: true, pushed: true } : { ok: true, pushed: false, warning: friendly(u.err) };
+}
+
+async function deleteTag(dir, name, remote = true) {
+  const root = await rootOf(dir);
+  const r = await run(root, ['tag', '-d', name]);
+  if (!r.ok) return fail(r);
+  if (!remote) return { ok: true };
+  const ls = await run(root, ['ls-remote', '--tags', 'origin', 'refs/tags/' + name], { interactive: true });
+  if (!ls.ok || !ls.out.trim()) return { ok: true };
+  const u = await run(root, ['push', 'origin', ':refs/tags/' + name], { interactive: true, timeout: 120000 });
+  return u.ok ? { ok: true } : { ok: true, warning: friendly(u.err) };
+}
+
+// Latest version-like tag (v2.5, 1.3.0 …) so the dialog can suggest the next one.
+async function tags(dir) {
+  const root = await rootOf(dir);
+  if (!root) return [];
+  const r = await run(root, ['tag', '--sort=-creatordate']);
+  return r.ok ? r.out.split(/\r?\n/).filter(Boolean) : [];
 }
 
 async function init(dir) {
@@ -271,4 +302,4 @@ function publish(dir, name, isPrivate) {
   });
 }
 
-module.exports = { status, log, show, diff, commit, sync, fetch, discard, restoreFile, init, setRemote, publish, setIdentity };
+module.exports = { status, log, show, diff, commit, sync, fetch, discard, restoreFile, init, setRemote, publish, setIdentity, tag, deleteTag, tags };
