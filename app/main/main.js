@@ -47,6 +47,7 @@ const DEFAULTS = {
   showLogOnError: true,
   pdfInvert: false,
   pdfZoom: 'width',
+  pdfDblClick: true,
   aiModel: 'claude-opus-5-5',
   aiEffort: 'medium',
   aiBaseURL: '',

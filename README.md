@@ -25,7 +25,7 @@
 | --- | --- |
 | 编译 | pdfLaTeX / XeLaTeX / LuaLaTeX / latexmk；智能模式自动运行 BibTeX/Biber、makeindex 并按需重跑；支持 `% !TEX program`、`% !TEX root`、TeXstudio 的 `% !TeX TXS-program:compile`，以及 latexmkrc 的 `$aux_dir` |
 | 预览 | 内置 PDF 预览，重新编译不闪烁、保持位置；缩放、适合宽度/整页、PDF 内查找、深色反色 |
-| SyncTeX | Ctrl+单击 PDF 跳到源码；Ctrl+单击源码（或 Ctrl+Alt+J）跳到 PDF；编译后自动定位到光标 |
+| SyncTeX | 双击或 Ctrl+单击 PDF 跳到源码；Ctrl+单击源码（或 Ctrl+Alt+J）跳到 PDF；编译后自动定位到光标 |
 | 编辑 | LaTeX 高亮、折叠（环境/章节）、多光标、查找替换、`\begin` 回车自动补 `\end`、`\item` 续行、拼写检查（跳过命令和公式） |
 | 补全 | 命令（带占位符）、环境、`\ref` 标签、`\cite` 文献（显示作者年份）、文件路径、宏包、自定义命令 |
 | 悬停 | 公式 KaTeX 预览（识别自定义宏）、图片预览、文献信息、标签上下文 |

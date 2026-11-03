@@ -61,6 +61,8 @@ export class PdfViewer {
       if (!pageEl || !this.dblClickSync) return;
       const p = this.pages[+pageEl.dataset.index];
       const r = pageEl.getBoundingClientRect();
+      getSelection()?.removeAllRanges();
+      this.flashPoint(p, e.clientX - r.left, e.clientY - r.top);
       this.onInverse?.({ page: p.index + 1, x: (e.clientX - r.left) / this.scale, y: (e.clientY - r.top) / this.scale });
     });
     // Drag-to-pan with middle mouse or while holding space
