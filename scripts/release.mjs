@@ -7,8 +7,9 @@ const { version, build } = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const { owner, repo } = build.publish[0];
 const tag = `v${version}`;
 const notes = process.argv[2];
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32', ...opts });
-const out = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', shell: process.platform === 'win32' }).trim();
+// Only npm (npm.cmd on Windows) needs a shell; git and gh run directly so arguments with spaces stay intact.
+const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...opts });
+const out = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
 if (out('git', ['status', '--porcelain'])) throw new Error('工作区有未提交的修改，请先提交');
 if (notes && !fs.existsSync(notes)) throw new Error(`找不到更新说明文件 ${notes}`);
@@ -16,7 +17,7 @@ let exists = true;
 try { out('gh', ['release', 'view', tag, '-R', `${owner}/${repo}`]); } catch { exists = false; }
 if (exists) throw new Error(`${tag} 已经发布过了，请先在 package.json 中提高版本号`);
 
-run('npm', ['run', 'dist']);
+run('npm', ['run', 'dist'], { shell: process.platform === 'win32' });
 
 // latest.yml tells installed copies about this version; the blockmap enables smaller differential downloads.
 const exe = `release/TeX-Studio-Minimal-Setup-${version}.exe`;
