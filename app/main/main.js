@@ -8,6 +8,7 @@ const compiler = require('./compiler');
 const synctex = require('./synctex');
 const ai = require('./ai');
 const updater = require('./updater');
+const git = require('./git');
 const { findTexBin, tool, scanCommon } = require('./texenv');
 
 const TEXT_EXT = /\.(tex|ltx|bib|sty|cls|bst|dtx|ins|txt|md|bbx|cbx|def|cfg|clo|tikz|pgf|lco|latexmkrc|bbl|log|aux|toc|py|m|csv|dat|json|yaml|yml)$/i;
@@ -361,6 +362,11 @@ ipcMain.handle('ai:set-key', async (_e, key) => { settings.aiKeyEnc = await ai.e
 ipcMain.handle('ai:stream', (_e, req) => ai.stream(settings, req, (type, payload) => send('ai:event', { id: req.id, type, ...payload })));
 ipcMain.handle('ai:abort', (_e, id) => ai.abort(id));
 ipcMain.handle('ai:fix', (_e, req) => ai.fix(settings, req));
+
+// ---------- version control ----------
+for (const k of ['status', 'log', 'show', 'diff', 'commit', 'sync', 'fetch', 'discard', 'restoreFile', 'init', 'setRemote', 'publish', 'setIdentity']) {
+  ipcMain.handle('git:' + k, (_e, ...args) => git[k](...args));
+}
 
 // ---------- watching ----------
 const watchers = new Map();

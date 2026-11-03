@@ -7,6 +7,7 @@ import { build, compile, stopCompile, inverseSearch, forwardSearch, mountMessage
 import { mountFiles, mountOutline, mountSearch, mountSymbols, mountBib } from './panels.js';
 import { PdfViewer } from './pdfview.js';
 import { mountAiPanel } from './ai.js';
+import { mountVersionDock } from './git.js';
 import { initUpdates } from './update.js';
 import { h, $, debounce, basename, dirname, relative, samePath } from './util.js';
 import { insertText } from './editor/extras.js';
@@ -90,6 +91,7 @@ function buildLayout() {
   const search = mountSearch(sideBodies.search);
   mountSymbols(sideBodies.symbols);
   mountBib(sideBodies.bib);
+  mountVersionDock(sidebar);
   app.sidebar = {
     show(k, { focusSearch, open = true } = {}) {
       app.layout.sidebarTab = k;
@@ -376,6 +378,7 @@ export function applyLayout() {
   els.tAi.classList.toggle('on', !!L.ai);
   app.sidebar.show(L.sidebarTab || 'files', { open: false });
   app.showPanel(L.panelTab || 'messages', { open: false });
+  app.vc?.applyLayout();
   saveSessionSoon();
 }
 app.layoutApi = {

@@ -6,7 +6,8 @@ import {
   Trash, Pencil, Command, Hash, Eraser, Type, Braces, Code, Files, FileCode, AtSign, Bookmark, Copy, Scissors,
   ClipboardPaste, TextWrap, Keyboard, CircleStop, ArrowUp, ArrowDown, Grid3x3, Pi, Omega, SquareFunction, LoaderCircle,
   Sparkles, Minus, Plus, WandSparkles, LayoutTemplate, ScanSearch, CaseSensitive, WholeWord, Regex, Replace, SunMoon,
-  LocateFixed, Columns2, FileType, Link, Star, Box, Palette, Download,
+  LocateFixed, Columns2, FileType, Link, Star, Box, Palette, Download, GitBranch, GitGraph, GitCompare, Cloud, CloudUpload,
+  CloudOff,
 } from 'lucide';
 
 const MAP = {
@@ -24,7 +25,8 @@ const MAP = {
   pi: Pi, omega: Omega, function: SquareFunction, loader: LoaderCircle, sparkles: Sparkles, minus: Minus, plus: Plus,
   wand: WandSparkles, template: LayoutTemplate, 'scan-search': ScanSearch, case: CaseSensitive, word: WholeWord,
   regex: Regex, replace: Replace, theme: SunMoon, locate: LocateFixed, columns: Columns2, 'file-type': FileType,
-  link: Link, star: Star, box: Box, palette: Palette, download: Download,
+  link: Link, star: Star, box: Box, palette: Palette, download: Download, 'git-branch': GitBranch, 'git-graph': GitGraph,
+  'git-compare': GitCompare, cloud: Cloud, 'cloud-upload': CloudUpload, 'cloud-off': CloudOff,
 };
 
 const cache = new Map();

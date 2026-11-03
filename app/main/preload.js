@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('api', {
   aiFix: inv('ai:fix'),
   onAiEvent: on('ai:event'),
 
+  git: Object.fromEntries(['status', 'log', 'show', 'diff', 'commit', 'sync', 'fetch', 'discard', 'restoreFile', 'init', 'setRemote', 'publish', 'setIdentity'].map((k) => [k, inv('git:' + k)])),
+
   updateCheck: inv('update:check'),
   updateDownload: inv('update:download'),
   updateInstall: inv('update:install'),

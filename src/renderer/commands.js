@@ -159,6 +159,9 @@ export function registerCommands() {
   cmd('build.clean', '清理辅助文件', cleanAux, { icon: 'eraser', category: '编译' });
   cmd('build.forward', '在 PDF 中定位光标', () => forwardSearch(), { key: 'Mod-Alt-j', icon: 'locate', category: '编译' });
   cmd('build.wordcount', '字数统计', wordCount, { icon: 'hash', category: '编译' });
+  cmd('git.commit', '提交版本…', () => app.vc?.open('changes'), { key: 'Mod-Shift-g', icon: 'git-branch', category: '版本' });
+  cmd('git.sync', '与 GitHub 同步', () => app.vc?.sync(), { icon: 'refresh', category: '版本' });
+  cmd('git.history', '版本树', () => app.vc?.open('history'), { icon: 'git-graph', category: '版本' });
   cmd('build.external', '用外部程序打开 PDF', async () => { const p = build.pdfPath || app.pdf?.viewer.path; if (p) api.openExternal(p); else toast('还没有 PDF'); }, { icon: 'external', category: '编译' });
   for (const e of ['pdflatex', 'xelatex', 'lualatex']) cmd('engine.' + e, e, () => setEngine(e), { category: '编译器', hidden: false });
 
@@ -307,6 +310,7 @@ export function menus() {
       } },
       { sep: true }, c('file.save'), c('file.saveAs'), c('file.saveAll'), { sep: true },
       c('file.master', { checked: !!(app.master && app.active?.path && samePath(app.master, app.active.path)) }), c('file.reveal'), { sep: true },
+      { label: '版本管理', icon: 'git-branch', submenu: [c('git.commit'), c('git.sync'), c('git.history')] }, { sep: true },
       c('file.close'), c('file.settings'), { sep: true }, c('file.exit'),
     ]],
     ['编辑', () => [
