@@ -7,6 +7,7 @@ import { build, compile, stopCompile, inverseSearch, forwardSearch, mountMessage
 import { mountFiles, mountOutline, mountSearch, mountSymbols, mountBib } from './panels.js';
 import { PdfViewer } from './pdfview.js';
 import { mountAiPanel } from './ai.js';
+import { initUpdates } from './update.js';
 import { h, $, debounce, basename, dirname, relative, samePath } from './util.js';
 import { insertText } from './editor/extras.js';
 import { icon } from './icons.js';
@@ -33,8 +34,10 @@ async function main() {
   if (!app.pdf.viewer.path) tryShowRootPdf();
   wireAutomation();
   api.onOpenFile(({ path }) => { if (/\.pdf$/i.test(path)) app.pdf.show(path, { reveal: true }); else openFile(path); });
-  api.onRequestClose(onRequestClose);
+  api.onRequestClose(() => onRequestClose());
+  app.requestClose = onRequestClose;
   document.body.classList.add('ready');
+  initUpdates();
   // Handle used by the scripted UI checks (TXS_SCRIPT) during development.
   window.__txs = { app, runCommand, compile, forwardSearch, openFile };
 }
@@ -422,7 +425,8 @@ function wireAutomation() {
   });
 }
 
-async function onRequestClose() {
+// Ask about unsaved files, then close the window (or run `after`, e.g. restart into an update).
+async function onRequestClose(after = () => api.confirmClose()) {
   const dirty = app.docs.filter((d) => d.dirty);
   if (dirty.length) {
     const r = await confirmDialog({ title: `有 ${dirty.length} 个文件尚未保存`, message: dirty.map((d) => '· ' + d.name).join('\n'), ok: '全部保存', cancel: '取消', third: '不保存' });
@@ -431,7 +435,7 @@ async function onRequestClose() {
   }
   saveSession();
   await new Promise((r) => setTimeout(r, 60));
-  api.confirmClose();
+  after();
 }
 
 main().catch((e) => { console.error(e); document.body.append(h('pre', { class: 'fatal' }, String(e.stack || e))); });

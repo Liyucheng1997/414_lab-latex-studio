@@ -40,6 +40,7 @@ export async function loadSettings() {
 export async function updateSettings(patch) {
   app.settings = await api.setSettings(patch);
   applyEditorSettings();
+  if ('editorBg' in patch || 'editorBgCustom' in patch) applyEditorBg();
   emit('settings', app.settings, patch);
 }
 export function applyEditorSettings() {
@@ -65,7 +66,32 @@ export function applyTheme() {
   const dark = isDark();
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   api.setTheme(dark);
+  applyEditorBg();
   emit('theme', dark);
+}
+
+// Editor background presets: [id, label, light swatch, dark swatch]; the applied colours live in app.css.
+export const EDITOR_BGS = [
+  ['default', '默认', '#ffffff', '#1c1c1e'],
+  ['green', '护眼绿', '#cce8cf', '#1b2a1f'],
+  ['sepia', '米黄', '#f5eedc', '#2a251c'],
+  ['blue', '淡蓝', '#e6eef8', '#18202b'],
+  ['gray', '浅灰', '#f0f0f2', '#0e0e10'],
+];
+function isDarkColor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 128;
+}
+export function applyEditorBg() {
+  const root = document.documentElement;
+  let k = app.settings.editorBg || 'default';
+  // A custom colour only applies when it suits the current theme, so the text stays readable.
+  if (k === 'custom' && isDarkColor(app.settings.editorBgCustom) !== isDark()) k = 'default';
+  root.dataset.editorBg = k;
+  if (k === 'custom') root.style.setProperty('--editor-bg', app.settings.editorBgCustom);
+  else root.style.removeProperty('--editor-bg');
 }
 
 // ---------- editor ----------

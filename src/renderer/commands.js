@@ -3,8 +3,9 @@ import { undo, redo, selectAll, toggleLineComment, indentMore, indentLess, curso
 import { openSearchPanel, replaceAll, selectNextOccurrence } from '@codemirror/search';
 import { foldAll, unfoldAll } from '@codemirror/language';
 import { startCompletion } from '@codemirror/autocomplete';
-import { app, emit, newDocument, openFile, saveDoc, saveAll, closeDoc, activate, updateSettings, setMaster, rootFor, goToLine, applyTheme, isDark, projectDir } from './app.js';
+import { app, emit, newDocument, openFile, saveDoc, saveAll, closeDoc, activate, updateSettings, setMaster, rootFor, goToLine, applyTheme, isDark, projectDir, EDITOR_BGS } from './app.js';
 import { compile, stopCompile, viewPdf, runTool, cleanAux, forwardSearch, build } from './build.js';
+import { checkForUpdates } from './update.js';
 import { openSettings, quickStart, tableWizard, figureWizard, matrixWizard, gotoLineDialog, commandPalette, quickOpen, wordCount, about } from './dialogs.js';
 import { wrapWith, insertText, insertEnvironment, wordArgAt } from './editor/extras.js';
 import { showMenu, closeMenus, toast, menuOpen } from './ui.js';
@@ -135,6 +136,8 @@ export function registerCommands() {
   cmd('view.symbols', '符号面板', () => app.sidebar.show('symbols'), { icon: 'sigma', category: '视图' });
   cmd('view.bib', '参考文献', () => app.sidebar.show('bib'), { icon: 'book', category: '视图' });
   cmd('view.theme', '切换深色 / 浅色', () => { updateSettings({ theme: isDark() ? 'light' : 'dark' }).then(applyTheme); }, { icon: 'theme', category: '视图' });
+  for (const [k, label] of EDITOR_BGS) cmd('view.bg.' + k, `编辑区背景：${label}`, () => updateSettings({ editorBg: k }), { category: '视图' });
+  cmd('view.bg.custom', '编辑区背景：自定义…', () => openSettings('look'), { category: '视图' });
   cmd('view.zoomIn', '增大字号', () => updateSettings({ fontSize: Math.min(32, app.settings.fontSize + 1) }), { key: 'Mod-=', category: '视图' });
   cmd('view.zoomOut', '减小字号', () => updateSettings({ fontSize: Math.max(9, app.settings.fontSize - 1) }), { key: 'Mod--', category: '视图' });
   cmd('view.zoomReset', '重置字号', () => updateSettings({ fontSize: 15 }), { key: 'Mod-0', category: '视图' });
@@ -230,6 +233,7 @@ export function registerCommands() {
 
   // Help
   cmd('help.shortcuts', '快捷键', () => openSettings('keys'), { icon: 'keyboard', category: '帮助' });
+  cmd('help.update', '检查更新…', () => checkForUpdates(), { icon: 'download', category: '帮助' });
   cmd('help.about', '关于', about, { icon: 'info', category: '帮助' });
   cmd('help.ctan', '在 CTAN 上查找宏包…', async () => { const { promptDialog } = await import('./ui.js'); const n = await promptDialog({ title: '查找宏包文档', placeholder: '例如 siunitx' }); if (n) api.openUrl('https://ctan.org/pkg/' + encodeURIComponent(n.trim())); }, { category: '帮助' });
   cmd('help.texdoc', '查看光标处宏包文档', () => {
@@ -316,7 +320,9 @@ export function menus() {
       c('view.sidebar', { checked: app.layout.sidebar }), c('view.pdf', { checked: app.layout.pdf }), c('view.panel', { checked: app.layout.panel }), { sep: true },
       c('view.files'), c('view.outline'), c('view.symbols'), c('view.bib'), { sep: true },
       c('view.wrap', { checked: app.settings.wrap }), c('view.zoomIn'), c('view.zoomOut'), c('view.zoomReset'), { sep: true },
-      c('view.theme'), c('view.fullscreen'), c('view.palette'),
+      c('view.theme'),
+      { label: '编辑区背景', icon: 'palette', submenu: () => [...EDITOR_BGS.map(([k, label]) => ({ ...c('view.bg.' + k), label, checked: (app.settings.editorBg || 'default') === k })), { sep: true }, { ...c('view.bg.custom'), label: '自定义…', checked: app.settings.editorBg === 'custom' }] },
+      c('view.fullscreen'), c('view.palette'),
     ]],
     ['LaTeX', () => [
       { label: '章节', icon: 'heading', submenu: ['part', 'chapter', 'section', 'subsection', 'subsubsection', 'paragraph'].map((k) => c('sec.' + k)) },
@@ -344,7 +350,7 @@ export function menus() {
       { label: '快速改写选中内容', icon: 'pencil', submenu: REWRITE_PRESETS.map(([label]) => c('ai.preset.' + label)) },
       c('ai.askSelection'), { sep: true }, c('ai.fix', { disabled: !(build.last?.issues || []).some((x) => x.type === 'error') }), { sep: true }, c('ai.settings'),
     ]],
-    ['帮助', () => [c('help.shortcuts'), c('view.palette'), c('help.texdoc'), c('help.ctan'), { sep: true }, c('help.about')]],
+    ['帮助', () => [c('help.shortcuts'), c('view.palette'), c('help.texdoc'), c('help.ctan'), { sep: true }, c('help.update'), c('help.about')]],
   ];
 }
 

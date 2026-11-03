@@ -1,22 +1,23 @@
 {
   "name": "texstudio-minimal",
   "productName": "TeX Studio Minimal",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A minimal, beautiful LaTeX editor with live PDF preview and SyncTeX.",
   "main": "app/main/main.js",
   "author": "liyucheng",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Liyucheng1997/texstudio-minimal.git"
+    "url": "https://github.com/Liyucheng1997/414_lab-latex-studio.git"
   },
-  "homepage": "https://github.com/Liyucheng1997/texstudio-minimal",
+  "homepage": "https://github.com/Liyucheng1997/414_lab-latex-studio",
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
     "start": "node build.mjs && electron .",
-    "dist": "node build.mjs && electron-builder --win nsis",
-    "pack": "node build.mjs && electron-builder --win dir"
+    "dist": "node build.mjs && electron-builder --win nsis --publish never",
+    "pack": "node build.mjs && electron-builder --win dir",
+    "release": "node scripts/release.mjs"
   },
   "build": {
     "appId": "com.liyucheng.texstudio-minimal",
@@ -24,6 +25,13 @@
     "directories": {
       "output": "release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Liyucheng1997",
+        "repo": "414_lab-latex-studio"
+      }
+    ],
     "files": [
       "app/**/*",
       "package.json"
@@ -35,7 +43,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "perMachine": false
+      "perMachine": false,
+      "artifactName": "TeX-Studio-Minimal-Setup-${version}.${ext}"
     },
     "fileAssociations": [
       {
@@ -80,6 +89,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
+    "electron-updater": "^6.8.11",
     "zod": "^4.6.7"
   }
 }

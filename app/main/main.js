@@ -7,6 +7,7 @@ const { execFile } = require('child_process');
 const compiler = require('./compiler');
 const synctex = require('./synctex');
 const ai = require('./ai');
+const updater = require('./updater');
 const { findTexBin, tool, scanCommon } = require('./texenv');
 
 const TEXT_EXT = /\.(tex|ltx|bib|sty|cls|bst|dtx|ins|txt|md|bbx|cbx|def|cfg|clo|tikz|pgf|lco|latexmkrc|bbl|log|aux|toc|py|m|csv|dat|json|yaml|yml)$/i;
@@ -20,6 +21,8 @@ const sessionFile = path.join(userData, 'session.json');
 
 const DEFAULTS = {
   theme: 'system',
+  editorBg: 'default',
+  editorBgCustom: '#cce8cf',
   engine: 'pdflatex',
   buildMode: 'smart',
   bibTool: 'auto',
@@ -49,6 +52,8 @@ const DEFAULTS = {
   aiBaseURL: '',
   aiKeyEnc: '',
   aiLanguage: 'auto',
+  autoCheckUpdate: true,
+  skipVersion: '',
   recentFiles: [],
   recentFolders: [],
   windowBounds: null,
@@ -197,6 +202,12 @@ ipcMain.handle('app:replace-misspelling', (_e, word) => win?.webContents.replace
 ipcMain.handle('app:add-to-dictionary', (_e, word) => win?.webContents.session.addWordToSpellCheckerDictionary(word));
 ipcMain.handle('app:set-spell-langs', (_e, langs) => { try { win?.webContents.session.setSpellCheckerLanguages(langs); } catch {} });
 ipcMain.handle('app:clipboard-write', (_e, text) => clipboard.writeText(text));
+
+// ---------- updates ----------
+const sendUpdate = (ev) => send('update:event', ev);
+ipcMain.handle('update:check', () => updater.check(sendUpdate));
+ipcMain.handle('update:download', () => updater.download(sendUpdate));
+ipcMain.handle('update:install', () => { forceClose = true; updater.install(); });
 
 // ---------- settings / session ----------
 const publicSettings = () => { const { aiKeyEnc, ...rest } = settings; return { ...rest, aiKeySaved: !!aiKeyEnc }; };

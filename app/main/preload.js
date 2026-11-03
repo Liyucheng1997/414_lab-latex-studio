@@ -64,6 +64,11 @@ contextBridge.exposeInMainWorld('api', {
   aiFix: inv('ai:fix'),
   onAiEvent: on('ai:event'),
 
+  updateCheck: inv('update:check'),
+  updateDownload: inv('update:download'),
+  updateInstall: inv('update:install'),
+  onUpdateEvent: on('update:event'),
+
   onOpenFile: on('app:open-file'),
   onRequestClose: on('app:request-close'),
   onSystemTheme: on('app:system-theme'),

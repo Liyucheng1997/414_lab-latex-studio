@@ -1,10 +1,11 @@
 // Settings, wizards, command palette, quick open.
-import { app, updateSettings, newDocument, openFile, goToLine, projectDir, rootFor, applyTheme } from './app.js';
+import { app, updateSettings, newDocument, openFile, goToLine, projectDir, rootFor, applyTheme, isDark, EDITOR_BGS } from './app.js';
 import { h, basename, dirname, relative, fuzzyScore, fmtKey, stripExt } from './util.js';
 import { icon } from './icons.js';
 import { modal, toast, promptDialog } from './ui.js';
 import { insertText } from './editor/extras.js';
 import { aiSettingsSection } from './ai.js';
+import { checkForUpdates } from './update.js';
 
 const api = window.api;
 
@@ -28,6 +29,21 @@ function text(key, placeholder = '', { number = false, width } = {}) {
 function seg(key, options, onChange) {
   const wrap = h('div', { class: 'seg' });
   const render = () => wrap.replaceChildren(...options.map(([v, l]) => h('button', { class: app.settings[key] === v ? 'active' : '', onclick: () => { updateSettings({ [key]: v }).then(() => { render(); onChange?.(v); }); } }, l)));
+  render();
+  return wrap;
+}
+
+function bgPicker() {
+  const wrap = h('div', { class: 'bg-picker' });
+  const render = () => {
+    const cur = app.settings.editorBg || 'default';
+    const custom = h('label', { class: `bg-swatch bg-swatch-custom ${cur === 'custom' ? 'active' : ''}`, title: '自定义…' }, h('input', { type: 'color', value: app.settings.editorBgCustom || '#cce8cf' }));
+    const input = custom.querySelector('input');
+    if (cur === 'custom') custom.style.background = app.settings.editorBgCustom;
+    input.addEventListener('input', () => { custom.style.background = input.value; });
+    input.addEventListener('change', () => updateSettings({ editorBg: 'custom', editorBgCustom: input.value }).then(render));
+    wrap.replaceChildren(...EDITOR_BGS.map(([k, label, light, dark]) => h('button', { class: `bg-swatch ${cur === k ? 'active' : ''}`, title: label, style: { background: isDark() ? dark : light }, onclick: () => updateSettings({ editorBg: k }).then(render) })), custom);
+  };
   render();
   return wrap;
 }
@@ -70,6 +86,11 @@ export function openSettings(section = 'build') {
     ai: ['AI 写作', 'sparkles', () => aiSettingsSection(field, select, seg)],
     look: ['外观', 'theme', () => [
       field('主题', seg('theme', [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']], () => applyTheme())),
+      field('编辑区背景', bgPicker(), '浅色、深色模式各有一套配色；自定义颜色只在深浅与当前主题一致时生效'),
+    ]],
+    update: ['更新', 'download', () => [
+      field('当前版本', h('div', { class: 'row-gap' }, h('span', { class: 'muted' }, app.info.version), h('button', { class: 'btn btn-sm', onclick: () => checkForUpdates() }, '检查更新'))),
+      field('启动时检查更新', toggle('autoCheckUpdate'), '发现新版本时提示，确认后才在后台下载，重启即完成更新'),
     ]],
     keys: ['快捷键', 'keyboard', () => [shortcutTable()]],
   };
@@ -330,5 +351,6 @@ export function about() {
     h('div', { class: 'muted' }, `版本 ${app.info.version}`),
     h('div', { class: 'about-desc' }, '一个简洁的 LaTeX 编辑器：编译预览、SyncTeX 双向跳转、智能补全。'),
     h('div', { class: 'muted small' }, `TeX：${app.info.texBin || '未找到'}`),
+    h('button', { class: 'btn btn-sm about-update', onclick: () => checkForUpdates() }, icon('download', 14, 2), '检查更新'),
   ) });
 }

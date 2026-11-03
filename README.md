@@ -4,9 +4,20 @@
 
 ## 安装与运行
 
-- 下载：在 [Releases](https://github.com/Liyucheng1997/texstudio-minimal/releases) 下载 `TeX Studio Minimal Setup 1.1.0.exe`（安装时会关联 .tex / .bib / .cls / .sty）
+- 下载：在 [Releases](https://github.com/Liyucheng1997/414_lab-latex-studio/releases) 下载最新的 `TeX-Studio-Minimal-Setup-<版本>.exe`（安装时会关联 .tex / .bib / .cls / .sty）
 - 需要本机已安装 TeX Live 或 MiKTeX；也可在 设置 → 编译 中手动指定 TeX 的 bin 目录
 - 从源码运行：`npm install` 后 `npm start`；打包安装程序：`npm run dist`（输出到 `release/`）
+
+## 自动更新
+
+1.2.0 起，软件启动时会检查 GitHub Releases，有新版本时弹窗显示更新说明；确认后在后台下载（状态栏显示进度），下载完成后点「立即重启」即完成安装，设置和会话都会保留。也可以在 帮助 → 检查更新，或 设置 → 更新 中手动检查、关闭启动检查。
+
+发布新版本：
+
+1. 在 `package.json` 中提高 `version`，提交并推送到 `main`
+2. 运行 `npm run release -- notes.md`（需要已登录的 `gh`；不给说明文件时由 GitHub 自动生成）
+
+脚本会打包并把安装包、`.blockmap` 和 `latest.yml` 一起上传到 Release——旧版本正是靠 `latest.yml` 发现新版本，手动上传时也不能漏掉它。
 
 ## 主要功能
 
